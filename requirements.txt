@@ -1,0 +1,6 @@
+gradio>=4.0
+fastapi
+uvicorn
+yt-dlp
+edge-tts
+imageio-ffmpeg

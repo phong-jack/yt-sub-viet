@@ -1,0 +1,77 @@
+{
+  "bo_canh": "hiện đại",
+  "nhan_vat": [
+    {
+      "ten": "Lục Trầm Chu",
+      "tuoi": 40,
+      "gioi_tinh": "Nam",
+      "vai": "Nam chính",
+      "dac_diem": "Trung niên, xuất thân nông thôn, làm thợ máy 20 năm, hiện lái xe bán hàng lưu động",
+      "do_tin_cay": "xac_nhan",
+      "xac_nhan_boi": "Lời tự thuật"
+    },
+    {
+      "ten": "Con gái",
+      "tuoi": 18,
+      "gioi_tinh": "Nữ",
+      "vai": "Nhân vật phụ",
+      "dac_diem": "Học sinh lớp 12, đang cần tiền đóng phí ôn tập",
+      "do_tin_cay": "xac_nhan",
+      "xac_nhan_boi": "Lời thoại và tự thuật của Lục Trầm Chu"
+    },
+    {
+      "ten": "Vợ",
+      "tuoi": 35,
+      "gioi_tinh": "Nữ",
+      "vai": "Nhân vật phụ",
+      "dac_diem": "Nghiện mạt chược, thua hết tài sản, bỏ chồng con",
+      "do_tin_cay": "du_doan",
+      "xac_nhan_boi": "Lời tự thuật của Lục Trầm Chu"
+    },
+    {
+      "ten": "Con trai",
+      "tuoi": 15,
+      "gioi_tinh": "Nam",
+      "vai": "Nhân vật phụ",
+      "dac_diem": "Ở nội trú, không muốn gặp cha",
+      "do_tin_cay": "du_doan",
+      "xac_nhan_boi": "Lời tự thuật của Lục Trầm Chu"
+    },
+    {
+      "ten": "Hệ thống",
+      "tuoi": null,
+      "gioi_tinh": "Không rõ",
+      "vai": "Hỗ trợ",
+      "dac_diem": "Hệ thống tương trợ ngưu mã hai giới, giao tiếp bằng âm thanh điện tử",
+      "do_tin_cay": "xac_nhan",
+      "xac_nhan_boi": "Lời thoại hệ thống"
+    }
+  ],
+  "quan_he": [
+    {
+      "a": "Lục Trầm Chu",
+      "b": "Con gái",
+      "xung": "Cha - Con (gọi là con gái ngốc)"
+    },
+    {
+      "a": "Con gái",
+      "b": "Lục Trầm Chu",
+      "xung": "Con - Cha (gọi là Ba)"
+    },
+    {
+      "a": "Lục Trầm Chu",
+      "b": "Vợ",
+      "xung": "Chồng - Vợ"
+    },
+    {
+      "a": "Lục Trầm Chu",
+      "b": "Con trai",
+      "xung": "Cha - Con"
+    }
+  ],
+  "glossary": {
+    "陆沉舟": "Lục Trầm Chu",
+    "秦川": "Tần Xuyên",
+    "青州": "Thanh Châu"
+  }
+}

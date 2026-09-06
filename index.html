@@ -1,0 +1,349 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>YT auto sub + dịch Việt</title>
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:system-ui;background:#000;color:#fff;height:100vh;display:flex;flex-direction:column}
+.bar{padding:8px;display:flex;gap:6px;background:#111}
+.bar input{flex:1;padding:8px;border-radius:8px;border:1px solid #444;background:#222;color:#fff}
+button{padding:8px 12px;border:0;border-radius:8px;background:#ff0033;color:#fff;cursor:pointer;font-size:15px}
+button.g{background:#0a7d2c}
+#stage{position:relative;flex:1;background:#000;min-height:0}
+#wrap,#wrap iframe{width:100%;height:100%;border:0}
+#cap{position:absolute;left:50%;transform:translateX(-50%);bottom:14%;max-width:92%;text-align:center;font-size:28px;font-weight:700;line-height:1.4;text-shadow:2px 2px 0 #000,-2px 2px 0 #000,0 0 12px #000;background:rgba(0,0,0,.6);padding:6px 16px;border-radius:10px;pointer-events:none}
+#cap small{display:block;font-size:13px;opacity:.7;font-weight:400}
+.ctl{display:flex;gap:6px;padding:8px;background:#111;align-items:center;font-size:14px}
+#st{font-size:13px;color:#aaa}
+</style>
+</head>
+<body>
+<div id="keyModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:99;align-items:center;justify-content:center">
+<div style="background:#1a1a20;padding:24px;border-radius:14px;max-width:420px;width:92%;display:flex;flex-direction:column;gap:10px">
+<div style="font-size:18px;font-weight:700">🔑 API Key để xem phim</div>
+<div style="font-size:13px;color:#aaa">Mỗi người dùng tự nhập key OpenAI-compatible (OpenRouter / 9router / Ollama cloud...) để dịch + vision. Key chỉ lưu ở trình duyệt bạn.</div>
+<label style="font-size:13px">Base URL<input id="k_base" style="width:100%;margin-top:4px;padding:8px;border-radius:8px;border:1px solid #444;background:#222;color:#fff" value="http://localhost:20128/v1"></label>
+<label style="font-size:13px">API Key<input id="k_key" type="password" placeholder="sk-... (bỏ trống nếu local không cần)" style="width:100%;margin-top:4px;padding:8px;border-radius:8px;border:1px solid #444;background:#222;color:#fff"></label>
+<label style="font-size:13px">Model dịch<input id="k_model" value="gemma4" style="width:100%;margin-top:4px;padding:8px;border-radius:8px;border:1px solid #444;background:#222;color:#fff"></label>
+<label style="font-size:13px">Model vision<input id="k_vision" value="ollama/gemma4:31b-cloud" style="width:100%;margin-top:4px;padding:8px;border-radius:8px;border:1px solid #444;background:#222;color:#fff"></label>
+<button class="g" onclick="saveKey()">Lưu & xem phim ▶</button>
+</div></div>
+<div class="bar">
+<input id="yt" value="https://www.youtube.com/watch?v=ji5y8zz-jeA&t=186s">
+<button onclick="load()">Load</button>
+<button onclick="openKey()" style="background:#444" title="Đổi API key">🔑</button>
+<button class="g" onclick="autoSub()">✨ Lấy sub YT + Dịch Việt</button>
+<button onclick="clearCache(false)" style="background:#444" title="Xóa cache video này">🗑 Video</button>
+<button onclick="clearCache(true)" style="background:#444" title="Xóa toàn bộ cache">🗑 All</button>
+<span id="st"></span>
+</div>
+<div id="stage"><div id="wrap"></div><div id="cap">Bấm “Lấy sub YT + Dịch Việt” — sub sẽ tự chạy khớp video, đè dưới màn hình.</div>
+<div id="loading" style="display:none;position:absolute;inset:0;background:rgba(0,0,0,.85);flex-direction:column;align-items:center;justify-content:center;gap:10px;text-align:center;padding:20px">
+<div style="font-size:40px">⏳</div>
+<div id="loadTitle" style="font-size:20px;font-weight:700">Đang chuẩn bị sub...</div>
+<div style="width:min(400px,80%);background:#333;border-radius:99px;overflow:hidden"><div id="loadBar" style="height:10px;width:5%;background:#0a7d2c;transition:width .5s"></div></div>
+<div id="loadStep" style="font-size:14px;color:#aaa">Bước 1/4: Tải sub gốc...</div>
+<div style="font-size:13px;color:#888">Video đã tạm dừng — xong là tự chạy tiếp, bạn không cần chờ lâu đâu.</div>
+</div></div>
+<div class="ctl"><span>Sync theo giờ video thật (YouTube API). Muốn dịch kiểu truyện Trung-Việt thì bật thêm:</span>
+<button onclick="truyenMode()" style="background:#333">Văn truyện</button>
+<button onclick="showMeta()" style="background:#0a5d8c">📖 Knowledge phim</button>
+<button id="subBtn" onclick="toggleSub()" style="background:#0a7d2c">👁 Sub: Bật</button>
+<button id="voiceBtn" onclick="toggleVoice()" style="background:#444">🔇 Voice: Tắt</button>
+<label style="font-size:14px;display:flex;align-items:center;gap:4px;background:#2a1040;padding:8px 10px;border-radius:8px;cursor:pointer"><input type="checkbox" id="visionMode" checked style="width:16px;height:16px"> 👁 Vision</label>
+<button onclick="visionSweep()" style="background:#6a1fb0" title="Vision check xưng hô quanh chỗ đang xem">👁 Check đoạn này</button>
+<select id="voiceSel" style="background:#222;color:#fff;border-radius:8px;padding:7px">
+<option value="vi-VN-HoaiMyNeural">Hoài My (nữ)</option>
+<option value="vi-VN-NamMinhNeural">Nam Minh (nam)</option>
+</select>
+</div>
+<div class="ctl" id="metaBox" style="display:none;flex-direction:column;align-items:stretch">
+<div style="font-size:13px">Knowledge phim (nhân vật/quan hệ/xưng hô/glossary) — tự trích từ sub, bạn sửa được:</div>
+<textarea id="meta" style="height:90px;flex:1;min-width:200px;background:#222;color:#ddd;border:1px solid #444;border-radius:8px;padding:6px"></textarea>
+<div><button onclick="saveMeta()" class="g">Lưu knowledge</button></div>
+</div>
+<script src="https://www.youtube.com/iframe_api"></script>
+<script>
+let player,subs=[],vid="ji5y8zz-jeA",startS=186,truyen=false;
+const cap=document.getElementById('cap'),st=document.getElementById('st');
+function ytId(u){let m=u.match(/v=([\w-]{6,})/);if(m)return m[1];m=u.match(/youtu\.be\/([\w-]+)/);if(m)return m[1];return u.trim();}
+function startAt(u){let m=u.match(/[?&]t=(\d+)s?/);if(m)return+m[1];m=u.match(/[?&]start=(\d+)/);if(m)return+m[1];return 0;}
+function load(){vid=ytId(document.getElementById('yt').value);startS=startAt(document.getElementById('yt').value);
+if(player){player.loadVideoById({videoId:vid,startSeconds:startS});}else{player=new YT.Player('wrap',{videoId:vid,playerVars:{start:startS,autoplay:1},events:{onReady:e=>e.target.playVideo(),onStateChange:onState}});} }
+let lastT=0,seekBusy=false;
+function onYouTubeIframeAPIReady(){player=new YT.Player('wrap',{videoId:vid,playerVars:{start:startS,autoplay:1},events:{onReady:e=>e.target.playVideo(),onStateChange:onState}});setInterval(sync,500);setInterval(watchSeek,400);}
+let preBufT=-1,seekPaused=false;
+function findCi(t){
+ let ci=-1;for(let k=0;k<subs.length;k++){if(t>=subs[k].start&&t<subs[k].start+subs[k].dur){ci=k;break;}}
+ if(ci<0){for(let k=0;k<subs.length;k++){if(subs[k].start<=t)ci=k;}}
+ return ci<0?0:ci;
+}
+// chờ giờ video đứng yên (poll 100ms, ổn định 3 lần liên tiếp hoặc tối đa 2s) — realtime
+async function stableTime(){
+ let prev=-1,calm=0;
+ for(let n=0;n<20;n++){
+  let t=-1;try{t=player.getCurrentTime();}catch(e){return -1;}
+  if(Math.abs(t-prev)<0.3){calm++;if(calm>=3)return t;}
+  else calm=0;
+  prev=t;
+  await new Promise(r=>setTimeout(r,100));
+ }
+ return prev;
+}
+async function onState(ev){
+ // BUFFERING(3) = co the la tua HOAC mang lag -> chi ghi gio, KHONG pause (pause chi khi xac nhan tua that o PLAYING)
+ if(ev.data===3){
+  try{preBufT=player.getCurrentTime();}catch(e){}
+ }
+ if(ev.data===1){
+  // PLAYING = chốt đoạn -> chờ giờ ổn định rồi xử lý
+  const t=await stableTime();
+  lastT=t;
+  const wasSeek=preBufT>=0&&Math.abs(t-preBufT)>3;
+  preBufT=-1;
+  await checkNeed(wasSeek,t);
+ }
+}
+async function checkNeed(fromSeek,t0){
+if(!subs.length)return;
+if(seekBusy){seekPaused=false;hideLoad();return;}
+let t=(t0!==undefined&&t0>=0)?t0:await stableTime();
+if(t<0)return;
+const ci=findCi(t);
+let need=false;for(let k=ci;k<Math.min(ci+12,subs.length);k++){if(!subs[k].vi){need=true;break;}}
+if(need){
+ seekBusy=true;
+ if(fromSeek){
+  // chi pause khi user TUA that; xem thuong thi de chay, dich nen lo (bgTranslate uu tien cho hien tai)
+  try{player.pauseVideo();}catch(e){}
+  setLoad(60,'Đang dịch đoạn bạn vừa tua tới...','Tạm dừng 1 chút — dịch 12 câu quanh phút '+Math.floor(t/60)+':'+String(Math.floor(t%60)).padStart(2,'0'));
+ }else{
+  st.textContent='⏳ Đoạn này chưa dịch xong — hiện tạm gốc Trung, 10s nữa có Việt...';
+ }
+ try{
+  const r=await fetch(`/api/tr?v=${vid}&i=${Math.max(0,ci-2)}&n=12${nov()}`);
+  const j=await r.json();j.subs.forEach(o=>{if(subs[o.i])subs[o.i].vi=o.vi;});
+  // CONG retrans truoc khi resume: sach chu Trung moi cho xem
+  const ids=[];for(let k=Math.max(0,ci-2);k<Math.min(ci+10,subs.length);k++)ids.push(k);
+  const ok=await retransGate(ids);
+  if(!ok)st.textContent='⚠️ Vài câu vẫn còn chữ Trung sau 2 lần dịch lại — đã ẩn, sẽ thử tiếp ở nền...';
+ }catch(e){}
+ if(fromSeek){hideLoad();try{player.playVideo();}catch(e){}}
+ seekBusy=false;seekPaused=false;
+}else{
+ // đủ sub -> cho pass luôn
+ seekPaused=false;hideLoad();
+ try{if(player&&player.getPlayerState&&player.getPlayerState()!==1)player.playVideo();}catch(e){}
+}
+}
+async function watchSeek(){
+if(!player||!player.getCurrentTime||!subs.length||seekBusy||bgRun===0)return;
+try{
+const t=player.getCurrentTime();
+const jump=Math.abs(t-lastT);
+lastT=t;
+if(jump>3){
+ // backup khi event state không về: dùng chung checkNeed (đã có chờ giờ ổn định)
+ checkNeed(true,t);
+}
+}catch(e){}
+}
+function sync(){
+if(!subs.length||!player||!player.getCurrentTime)return;
+const t=player.getCurrentTime();
+const s=subs.find(s=>t>=s.start&&t<s.start+s.dur)||null;
+const CJKRE = /[\u4e00-\u9fff\u3400-\u4dbf]/;
+async function retransGate(idxs){
+// CONG: cau nao con chu Trung -> retrans truoc, sach moi cho xem
+const bad=idxs.filter(k=>subs[k]&&(!subs[k].vi||CJKRE.test(subs[k].vi)));
+if(!bad.length)return true;
+for(let round=0;round<2;round++){
+ try{
+  const r=await fetch(`/api/retrans?v=${vid}&idx=${JSON.stringify(bad)}`);
+  const j=await r.json();
+  (j.fixed||[]).forEach(o=>{if(subs[o.i])subs[o.i].vi=o.vi;});
+  const still=bad.filter(k=>!subs[k].vi||CJKRE.test(subs[k].vi));
+  if(!still.length)return true;
+ }catch(e){await new Promise(r=>setTimeout(r,1500));}
+}
+return false;
+}
+if(!s||!s.vi||CJKRE.test(s.vi)){cap.style.display='none';if(s&&s.vi&&CJKRE.test(s.vi))retransGate([subs.indexOf(s)]);return;} // chua sach -> an + retrans nen
+if(!subOn)return;
+cap.style.display='block';
+let txt=truyen?toTruyen(s.vi):s.vi;cap.innerHTML=txt;if(voiceOn&&s.start!==lastSpoken){lastSpoken=s.start;speakSub(txt);}
+}
+function setLoad(pct,title,step){document.getElementById('loading').style.display='flex';document.getElementById('loadBar').style.width=pct+'%';if(title)document.getElementById('loadTitle').textContent=title;if(step)document.getElementById('loadStep').textContent=step;}
+function hideLoad(){document.getElementById('loading').style.display='none';}
+async function autoSub(){
+vid=ytId(document.getElementById('yt').value);
+try{if(player&&player.pauseVideo)player.pauseVideo();}catch(e){}
+setLoad(5,'Đang chuẩn bị sub...','Bước 1/4: Tải sub gốc từ YouTube...');
+st.textContent="Đang lấy sub...";
+// fake tiến trình cho đỡ sốt ruột trong lúc chờ request dài
+let pct=5;const tick=setInterval(()=>{pct=Math.min(pct+3,90);document.getElementById('loadBar').style.width=pct+'%';
+if(pct<30)document.getElementById('loadStep').textContent='Bước 1/4: Tải sub gốc từ YouTube...';
+else if(pct<55)document.getElementById('loadStep').textContent='Bước 2/4: Trích knowledge phim (nhân vật/xưng hô)...';
+else if(pct<80)document.getElementById('loadStep').textContent='Bước 3/4: Dịch 6 câu đầu bằng gemma4...';
+else document.getElementById('loadStep').textContent='Bước 4/4: Sắp xong, khớp timing...';},800);
+const t0=Date.now();
+try{
+const r=await fetch(`/api/subs?v=${vid}&lang=zh`);
+const j=await r.json();
+clearInterval(tick);
+if(j.error)throw new Error(j.error);
+subs=j.subs;
+if(j.cached){setLoad(100,'Có sub ngay từ cache!','Không cần chờ — bấm play là xem.');}
+else{setLoad(100,`Xong sau ${Math.round((Date.now()-t0)/1000)}s!`,`Đã có ${subs.length} câu, 6 câu đầu dịch sẵn.`);}
+st.textContent=j.cached?`Cache hit: ${subs.length} câu — xem ngay!`:`Có sub ngay! Đang dịch nền ${subs.length} câu...`;
+bgTranslate();
+setTimeout(()=>{hideLoad();try{if(player&&player.playVideo)player.playVideo();}catch(e){}},j.cached?600:1500);
+}catch(e){clearInterval(tick);hideLoad();st.textContent="Lỗi: "+e.message;try{if(player&&player.playVideo)player.playVideo();}catch(_){}}
+}
+function curIdx(){
+try{
+ if(!player||!player.getCurrentTime||!subs.length)return -1;
+ const t=player.getCurrentTime();
+ for(let k=0;k<subs.length;k++){if(t>=subs[k].start&&t<subs[k].start+subs[k].dur)return k;}
+ let best=0;for(let k=0;k<subs.length;k++){if(subs[k].start<=t)best=k;}
+ return best;
+}catch(e){return -1;}
+}
+let bgRun=0;
+function nov(){const c=document.getElementById('visionMode');return (c&&!c.checked)?'&novision=1':'';}
+function visionOn(){const c=document.getElementById('visionMode');return c?c.checked:true;}
+async function bgTranslate(){
+const run=++bgRun;
+const doneSet=new Set(subs.map((s,k)=>s.vi?k:-1).filter(k=>k>=0));
+// dịch ngay quanh vị trí hiện tại trước
+const ci=curIdx();
+if(ci>=0){await trRange(Math.max(0,ci-2),doneSet);if(run!==bgRun)return;}
+let i=0;
+while(run===bgRun){
+ // ưu tiên: nếu user tua đi chỗ chưa dịch thì nhảy tới đó ngay
+ const c=curIdx();
+ if(c>=0){
+  let need=-1;
+  for(let k=c;k<Math.min(c+30,subs.length);k++){if(!subs[k].vi){need=k;break;}}
+  if(need>=0){await trRange(need,doneSet);continue;}
+ }
+ // không thì dịch tiếp từ đầu tới cuối chỗ nào thiếu
+ let nxt=-1;
+ for(let k=0;k<subs.length;k++){if(!subs[k].vi){nxt=k;break;}}
+ if(nxt<0)break;
+ await trRange(nxt,doneSet);
+}
+if(run===bgRun){
+ if(visionOn()){st.textContent=`Xong ${subs.length} câu (vision-inline, chuẩn xưng hô)! Muốn soi lại đoạn nào thì bấm 👁 Check đoạn này.`;}
+ else{st.textContent=`Xong ${subs.length} câu (mode nhanh, Vision tắt)! Tích 👁 Vision để soi xưng hô.`;}
+}
+}
+async function resyncSubs(){
+try{
+ const r=await fetch(`/api/subs?v=${vid}&lang=zh`);
+ const j=await r.json();
+ if(j.subs&&j.subs.length===subs.length){let n=0;j.subs.forEach((s,k)=>{if(s.vi&&!subs[k].vi){subs[k].vi=s.vi;n++;}});return n;}
+ if(j.subs&&j.subs.length){subs=j.subs;return -1;}
+}catch(e){}
+return 0;
+}
+let stallRounds=0,lastDoneSize=0;
+async function trRange(from,doneSet){
+try{
+ const r=await fetch(`/api/tr?v=${vid}&i=${from}&n=12${nov()}`);
+ const j=await r.json();
+ if(j.error==='NO_CACHE'){await resyncSubs();st.textContent='🔄 Server mới restart, đã nạp lại cache...';return;}
+ j.subs.forEach(o=>{if(subs[o.i]){subs[o.i].vi=o.vi;doneSet.add(o.i);}});
+ if(doneSet.size===lastDoneSize){stallRounds++;}else{stallRounds=0;lastDoneSize=doneSet.size;}
+ if(stallRounds>=5){stallRounds=0;const n=await resyncSubs();if(n>0)st.textContent=`🔄 Đồng bộ lại: thêm ${n} câu từ cache...`;}
+
+ st.textContent=`Đã dịch ${doneSet.size}/${subs.length} câu (đang ở phút ${Math.floor((player&&player.getCurrentTime?player.getCurrentTime():0)/60)}:${String(Math.floor((player&&player.getCurrentTime?player.getCurrentTime():0)%60)).padStart(2,'0')}) — bám theo chỗ bạn xem...`;
+}catch(e){await new Promise(r=>setTimeout(r,2000));}
+}
+let visionRun=0;
+async function visionSweep(){
+const myVid=vid,myRun=++visionRun;
+const ci=curIdx();const from=ci>=0?Math.max(0,ci-6):0;
+st.textContent='👁 Vision đang nhìn frame + sửa xưng hô quanh chỗ bạn xem...';
+try{
+const r=await fetch(`/api/vision?v=${myVid}&i=${from}&n=60`);
+const j=await r.json();
+if(myVid!==vid||myRun!==visionRun)return; // video đã đổi -> bỏ kết quả cũ
+if(j.error)throw new Error(j.error);
+(j.fixed||[]).forEach(o=>{if(subs[o.i]){subs[o.i].vi=o.vi;subs[o.i].verified='vision';}});
+st.textContent=`👁 Vision xong: soi ${(j.checked||0)} câu, sửa ${(j.fixed||[]).length} câu xưng hô.`;
+}catch(e){if(myVid===vid)st.textContent='👁 Vision lỗi: '+e.message;}
+}
+async function autoVision(){
+// luôn bật: quét vision toàn phim sau khi dịch text xong (chậm nhưng chuẩn)
+const myVid=vid,myRun=++visionRun;
+let i=0;
+while(myVid===vid&&myRun===visionRun&&i<subs.length){
+ try{
+  const r=await fetch(`/api/vision?v=${myVid}&i=${i}&n=120`);
+  const j=await r.json();
+  if(myVid!==vid||myRun!==visionRun)return;
+  if(j.error)throw new Error(j.error);
+  (j.fixed||[]).forEach(o=>{if(subs[o.i]){subs[o.i].vi=o.vi;subs[o.i].verified='vision';}});
+  const vdone=subs.filter(s=>s.verified==='vision').length;
+  st.textContent=`👁 Vision toàn phim: ${vdone}/${subs.length} câu đã soi mặt...`;
+  if(!(j.fixed||[]).length){i+=120;} // đoạn này không còn câu cần soi -> nhảy tiếp
+  else{i+=12;}
+ }catch(e){await new Promise(r=>setTimeout(r,3000));}
+}
+if(myVid===vid)st.textContent=`👁 Vision toàn phim xong ${subs.length} câu!`;
+}
+async function clearCache(all){
+vid=ytId(document.getElementById('yt').value);
+if(!confirm(all?"Xóa toàn bộ cache?":"Xóa cache video này?"))return;
+const r=await fetch(all?`/api/clear`:`/api/clear?v=${vid}`);
+const j=await r.json();
+st.textContent=j.ok||j.error;subs=[];
+}
+async function showMeta(){
+const b=document.getElementById('metaBox');b.style.display=b.style.display==='none'?'flex':'none';
+const r=await fetch(`/api/meta?v=${vid}`);const j=await r.json();
+document.getElementById('meta').value=JSON.stringify(j,null,1);
+}
+async function saveMeta(){
+try{const meta=JSON.parse(document.getElementById('meta').value);
+await fetch(`/api/meta`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({v:vid,meta})});
+st.textContent='Đã lưu knowledge phim! Dịch lại từ đầu để áp dụng.';}catch(e){alert('JSON sai: '+e.message);}
+}
+let subOn=true,voiceOn=false,lastSpoken=-1;const audio=new Audio();
+function toggleSub(){subOn=!subOn;document.getElementById('subBtn').textContent=subOn?'👁 Sub: Bật':'👁 Sub: Tắt';cap.style.display=subOn?'block':'none';}
+function toggleVoice(){voiceOn=!voiceOn;document.getElementById('voiceBtn').textContent=voiceOn?'🔊 Voice: Bật':'🔇 Voice: Tắt';document.getElementById('voiceBtn').style.background=voiceOn?'#0a7d2c':'#444';if(!voiceOn){audio.pause();} }
+function speakSub(txt){
+if(!voiceOn||!txt)return;
+const v=document.getElementById('voiceSel').value;
+audio.src=`/api/voice?t=${encodeURIComponent(txt.slice(0,300))}&v=${v}`;audio.play().catch(()=>{});
+}
+// hook vào sync: sau khi hiện sub thì đọc
+const _sync=sync;
+function openKey(){document.getElementById('keyModal').style.display='flex';}
+async function saveKey(){
+const cfg={base_url:document.getElementById('k_base').value.trim(),api_key:document.getElementById('k_key').value.trim(),model:document.getElementById('k_model').value.trim(),vision_model:document.getElementById('k_vision').value.trim()};
+localStorage.setItem('yt_sub_cfg',JSON.stringify({...cfg,api_key:cfg.api_key?'***saved***':''}));
+localStorage.setItem('yt_sub_key',cfg.api_key);
+try{await fetch('/api/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(cfg)});}catch(e){}
+document.getElementById('keyModal').style.display='none';
+st.textContent='Đã lưu key! Bấm ✨ để lấy sub.';
+}
+(function initKey(){
+try{
+const raw=localStorage.getItem('yt_sub_cfg');
+if(raw){const c=JSON.parse(raw);if(c.base_url)document.getElementById('k_base').value=c.base_url;if(c.model)document.getElementById('k_model').value=c.model;if(c.vision_model)document.getElementById('k_vision').value=c.vision_model;}
+const key=localStorage.getItem('yt_sub_key')||'';
+if(key)document.getElementById('k_key').value=key;
+if(!raw&&!key)document.getElementById('keyModal').style.display='flex';
+else{const c=raw?JSON.parse(raw):{};fetch('/api/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({base_url:c.base_url||'http://localhost:20128/v1',api_key:key,model:c.model||'gemma4',vision_model:c.vision_model||'ollama/gemma4:31b-cloud'})}).catch(()=>{});}
+}catch(e){document.getElementById('keyModal').style.display='flex';}
+})();
+function toTruyen(s){ // làm sạch theo prompt Trung-Việt: câu ngắn, giữ xưng hô
+return s.replace(/\s+/g,' ').trim();
+}
+function truyenMode(){truyen=!truyen;alert(truyen?"Đã bật văn truyện Trung-Việt":"Đã tắt");}
+</script>
+</body>
+</html>

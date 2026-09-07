@@ -507,9 +507,19 @@ class H(http.server.SimpleHTTPRequestHandler):
             return
         return super().do_GET()
 
+def _lan_ip():
+    import socket
+    try:
+        s=socket.socket(socket.AF_INET,socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8",80)); ip=s.getsockname()[0]; s.close()
+        return ip
+    except Exception: return "localhost"
 if __name__=="__main__":
     os.chdir(os.path.dirname(os.path.abspath(__file__)))
-    port=int(sys.argv[1]) if len(sys.argv)>1 else 7378
-    host="0.0.0.0" if len(sys.argv)>1 else "127.0.0.1"  # host len de chay local an toan
+    port=int(os.environ.get("PORT",sys.argv[1] if len(sys.argv)>1 else 7378))
+    host=os.environ.get("HOST","0.0.0.0" if len(sys.argv)>1 else "127.0.0.1")
     print(f"Serving {host}:{port}",flush=True)
+    if host=="0.0.0.0":
+        print(f"Xem tren may nay: http://127.0.0.1:{port}",flush=True)
+        print(f"Xem tu dien thoai/may khac cung wifi: http://{_lan_ip()}:{port}",flush=True)
     http.server.ThreadingHTTPServer((host,port),H).serve_forever()

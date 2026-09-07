@@ -11,16 +11,26 @@
 | Node.js 18+ | tùy chọn | chỉ để chạy test headless (`seek.test.js` kiểu cũ), không bắt buộc |
 | LLM API (OpenAI-compatible) | — | dịch + vision. Chọn 1: **9router local** `http://localhost:20128/v1`, **OpenRouter** `https://openrouter.ai/api/v1`, **Ollama cloud**, ... |
 
-## 2. Chạy local (2 lệnh)
+## 2. Chạy local (máy công ty / máy nhà - KHÔNG public mạng)
 
+**Windows (khuyên dùng):** double-click 1 trong 2 file:
+- `start.bat` — chỉ máy đó xem được (`http://127.0.0.1:7378`, localhost-only, an toàn nhất)
+- `start-host.bat` — mở cho máy khác **cùng mạng nội bộ** xem (`0.0.0.0:7378`, Windows Firewall sẽ hỏi → Allow)
+
+**Linux/Mac:** `bash start-host.sh`
+
+**Chạy tay:**
 ```bash
 cd youtube-stream-sub
-python -u server.py          # mac dinh http://127.0.0.1:7378
+python -u server.py          # mac dinh http://127.0.0.1:7378 (localhost-only)
+# mo LAN:  HOST=0.0.0.0 python -u server.py
 # port khac:  python -u server.py 8080   (0.0.0.0:8080)
 ```
 
 Không cần `pip install` gì để mở web + xem sub cache sẵn.
 Cần full tính năng thì: `pip install yt-dlp edge-tts`
+
+> Muốn xem từ ngoài internet thì mới cần tunnel/VPS (xem HOSTING.md) — mặc định KHÔNG mở public.
 
 ## 3. Biến môi trường (ENV)
 
